@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>超级计分器 v2.5 - 高效定制</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a; --card-bg: #2c2c2c; --text-color: #eaeaea; --text-muted: #888;
+            --primary-gold: #D4AF37; --primary-gold-glow: rgba(212, 175, 55, 0.3); --danger-color: #e57373;
+            --danger-button-bg: #B71C1C; --success-color: #4CAF50; --team-a-color: var(--primary-gold);
+            --team-a-bg: rgba(212, 175, 55, 0.1); --team-b-color: #26A69A; --team-b-bg: rgba(38, 166, 154, 0.1);
+            --border-color: #444; --border-radius: 12px; --shadow: 0 4px 15px rgba(0, 0, 0, 0.2); --transition-speed: 0.3s;
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        @keyframes score-pop { 0% { transform: scale(1); } 50% { transform: scale(1.4); } 100% { transform: scale(1); } }
+        @keyframes shake-name { 0%{transform:translateX(0)}10%,30%,50%,70%,90%{transform:translateX(-4px)}20%,40%,60%,80%{transform:translateX(4px)}100%{transform:translateX(0)} }
+        @keyframes fade-out-border { to { border-left-color: transparent; background-color: var(--card-bg); } }
+        @keyframes toast-in-out { 0%, 100% { transform: translate(-50%, 100px); opacity: 0; } 10%, 90% { transform: translate(-50%, 0); opacity: 1; } }
+
+        *, *::before, *::after { box-sizing: border-box; }
+        html { -webkit-text-size-adjust: 100%; }
+        body { font-family: 'Noto Sans SC', sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 15px; -webkit-tap-highlight-color: transparent; overflow-x: hidden; min-height: 100vh; display: flex; justify-content: center; touch-action: manipulation; }
+        .container { width: 100%; max-width: 600px; animation: fadeIn 0.5s ease-out; }
+        h1 { text-align: center; color: var(--primary-gold); margin: 0 0 20px; font-size: clamp(24px, 6vw, 28px); font-weight: 700; letter-spacing: 2px; text-shadow: 0 0 10px var(--primary-gold-glow); }
+        
+        .main-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .btn { padding: 12px 15px; font-size: 15px; font-weight: 500; border: 1px solid var(--border-color); border-radius: var(--border-radius); cursor: pointer; transition: all var(--transition-speed) ease; background-color: var(--card-bg); color: var(--text-color); display: flex; justify-content: center; align-items: center; gap: 8px; }
+        .btn:hover:not(:disabled) { background-color: #383838; border-color: var(--primary-gold); }
+        .btn:active:not(:disabled) { transform: scale(0.97); }
+        .btn:disabled { background-color: #222; color: var(--text-muted); border-color: #333; cursor: not-allowed; opacity: 0.6; }
+        .btn.primary { background-color: var(--primary-gold); color: #1a1a1a; font-weight: 700; border-color: var(--primary-gold); }
+        .btn.danger { background-color: transparent; color: var(--danger-button-bg); border-color: var(--danger-button-bg); }
+        .btn.danger:hover:not(:disabled) { background-color: rgba(183, 28, 28, 0.1); }
+        .btn.danger.confirm { background-color: var(--danger-button-bg); color: white; font-weight: bold; }
+        
+        .player-controls { display: flex; justify-content: center; align-items: center; gap: 10px; padding: 8px; background: var(--card-bg); border-radius: var(--border-radius); margin-bottom: 15px; }
+        #player-count-display { font-weight: 500; font-size: 16px; margin: 0 5px; }
+        
+        .secondary-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 10px; }
+        .switch-container { display: flex; align-items: center; gap: 10px; background-color: var(--card-bg); padding: 8px 12px; border-radius: var(--border-radius); }
+        .switch-label { font-size: 14px; color: var(--text-muted); font-weight: 500; }
+        .switch-btn { background-color: #555; width: 50px; height: 28px; border-radius: 14px; padding: 3px; cursor: pointer; transition: background-color var(--transition-speed); display: flex; align-items: center; flex-shrink: 0; }
+        .switch-btn.active { background-color: var(--primary-gold); }
+        .switch-btn-handle { background-color: white; width: 22px; height: 22px; border-radius: 50%; transition: transform var(--transition-speed) ease; }
+        .switch-btn.active .switch-btn-handle { transform: translateX(22px); }
+        #settingsBtn { font-size: 14px; padding: 8px 12px; background-color: transparent; border: 1px solid var(--text-muted); color: var(--text-muted); border-radius: 8px; flex-shrink: 0; }
+        #settingsBtn:hover { border-color: var(--primary-gold); color: var(--primary-gold); }
+
+        .player-list { display: flex; flex-direction: column; gap: 12px; }
+        .vs-separator-container { display: flex; align-items: center; justify-content: center; padding: 5px 0; gap: 15px;}
+        .vs-text { font-size: 22px; font-weight: bold; color: var(--text-muted); }
+        #dynamicRecordBtn { padding: 8px 20px; font-size: 14px; background-color: var(--success-color); color: white; border-color: var(--success-color); font-weight: 700; border-radius: 20px; }
+        #dynamicRecordBtn:disabled { background-color: #222; color: var(--text-muted); border-color: #333; }
+
+        .player-card { background-color: var(--card-bg); border: 1px solid var(--border-color); border-left: 5px solid transparent; border-radius: var(--border-radius); box-shadow: var(--shadow); padding: 12px 15px; transition: all var(--transition-speed) ease; display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "nemesis main score" "nemesis name score"; align-items: center; gap: 0 15px; }
+        .player-card.rank-1 { background: linear-gradient(145deg, #2c2c2c, #3a321e); border-color: var(--primary-gold); border-left-color: var(--primary-gold); box-shadow: 0 0 20px var(--primary-gold-glow); }
+        .player-card.team-a { border-left-color: var(--team-a-color); background-color: var(--team-a-bg); }
+        .player-card.team-b { border-left-color: var(--team-b-color); background-color: var(--team-b-bg); }
+        .nemesis-icon { grid-area: nemesis; cursor: pointer; width: 28px; height: 28px; color: #666; transition: all var(--transition-speed); }
+        .nemesis-icon.active { color: var(--danger-color); transform: scale(1.2); }
+        .player-rank-title { grid-area: main; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 2px; }
+        .rank-1 .player-rank-title { color: var(--primary-gold); font-weight: 700; }
+        .player-name { grid-area: name; font-weight: 700; font-size: clamp(18px, 5vw, 20px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .player-name:focus { outline: none; background: rgba(255,255,255,0.1); border-radius: 4px; padding: 0 4px;}
+        .player-name.shaking { animation: shake-name 0.5s ease-in-out; }
+        .player-scoring { grid-area: score; display: flex; align-items: center; gap: 10px; }
+        .score-btn { width: 34px; height: 34px; font-size: 22px; font-weight: 300; border-radius: 50%; border: 1px solid var(--border-color); background-color: transparent; color: var(--text-color); cursor: pointer; transition: all 0.2s; display: inline-flex; justify-content: center; align-items: center; line-height: 1; }
+        .player-score { font-weight: 700; font-size: clamp(28px, 8vw, 32px); min-width: 45px; text-align: center; color: var(--primary-gold); transition: color 0.3s; }
+        .team-b .player-score { color: var(--team-b-color); }
+        .player-score.popping { animation: score-pop 0.3s ease-out; }
+        
+        .modal { position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; opacity: 0; visibility: hidden; transition: all var(--transition-speed) ease; }
+        .modal.visible { opacity: 1; visibility: visible; }
+        .modal-content { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 25px; width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); transform: scale(0.95); transition: transform var(--transition-speed) ease; max-height: 80vh; overflow-y: auto; }
+        .modal.visible .modal-content { transform: scale(1); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px;}
+        .modal-title { font-size: 22px; font-weight: 700; margin: 0; color: var(--primary-gold); }
+        .modal-close { font-size: 32px; font-weight: 300; cursor: pointer; color: var(--text-muted); border: none; background: none; line-height: 1; }
+        .modal-section-title { font-size: 18px; font-weight: 500; margin-top: 25px; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid var(--primary-gold); }
+        .stats-list { list-style-type: none; padding: 0; margin: 0; }
+        .stats-list li { display: flex; justify-content: space-between; align-items: center; padding: 12px 5px; border-bottom: 1px solid var(--border-color); font-size: 15px; }
+        .stats-list li:last-child { border-bottom: none; }
+        .rank-list .rank-1-item { background-color: var(--team-a-bg); border-radius: 8px; font-weight: 700; color: var(--primary-gold); }
+        .stat-value, .rank-score { font-weight: bold; color: var(--primary-gold); }
+        .rank-score { color: var(--team-b-color); }
+        .rank-list .rank-1-item .rank-score { color: var(--primary-gold); }
+        .settings-list { list-style-type: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 15px; }
+        .settings-list li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .settings-list .setting-label { color: var(--text-muted); font-weight: bold; min-width: 70px; text-align: right;}
+        .settings-list input[type="text"] { flex-grow: 1; background-color: #333; border: 1px solid var(--border-color); color: var(--text-color); padding: 10px; border-radius: 8px; font-size: 16px; }
+        .settings-list input[type="text"]:focus { border-color: var(--primary-gold); outline: none; box-shadow: 0 0 10px var(--primary-gold-glow); }
+        .sound-setting .btn-small { padding: 4px 8px; font-size: 12px; border-radius: 6px; }
+        .sound-setting .status-text { font-size: 13px; color: var(--text-muted); flex-basis: 100%; margin-left: 80px; }
+        .modal-footer { margin-top: 25px; display: flex; justify-content: space-between; gap: 10px; }
+        #toast-container { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background-color: var(--primary-gold); color: var(--bg-color); padding: 12px 25px; border-radius: 25px; z-index: 2000; font-weight: bold; box-shadow: 0 5px 15px rgba(0,0,0,0.3); opacity: 0; visibility: hidden; }
+        #toast-container.show { visibility: visible; animation: toast-in-out 3s ease-in-out forwards; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>巅峰对决</h1>
+        <div class="main-controls">
+            <button id="teamUpBtn" class="btn primary">随机组队</button>
+            <button id="statsBtn" class="btn">数据统计</button>
+        </div>
+        <div class="player-controls">
+            <button id="removePlayerBtn" class="btn">-</button>
+            <span id="player-count-display">4 位玩家</span>
+            <button id="addPlayerBtn" class="btn">+</button>
+        </div>
+        <div class="secondary-controls">
+            <div class="switch-container">
+                <span id="allowRepeatLabel" class="switch-label">避免重复</span>
+                <div id="allowRepeatSwitch" class="switch-btn" title="切换组队模式"><div class="switch-btn-handle"></div></div>
+            </div>
+            <button id="settingsBtn" class="btn">设置与称号</button>
+        </div>
+        <div id="playerList" class="player-list"></div>
+    </div>
+    
+    <div id="statsModal" class="modal"><div class="modal-content"><div class="modal-header"><h2 class="modal-title">战局分析</h2><button class="modal-close" id="closeStatsModal">&times;</button></div><div id="generalStatsContainer"><h3 class="modal-section-title">综合数据</h3><ul class="stats-list" id="generalStatsList"></ul></div><div id="rankingsContainer"><h3 class="modal-section-title">积分排行榜</h3><ul class="stats-list rank-list" id="rankList"></ul></div><div id="teamStatsContainer"><h3 class="modal-section-title">CP组合分析</h3><ul class="stats-list" id="teamStatsList"></ul></div><div class="modal-footer"><button id="resetBtn" class="btn danger">清零所有数据</button></div></div></div>
+    
+    <div id="settingsModal" class="modal"><div class="modal-content"><div class="modal-header"><h2 class="modal-title">设置与称号</h2><button class="modal-close" id="closeSettingsModal">&times;</button></div><div id="settingsContainer"><h3 class="modal-section-title">音效反馈 (可选)</h3><ul id="sound-settings-list" class="settings-list"></ul><h3 class="modal-section-title">自定义称号</h3><ul id="title-editor-list" class="settings-list"></ul></div><div class="modal-footer"><button id="restoreDefaultsBtn" class="btn danger">恢复默认</button><button id="saveSettingsBtn" class="btn primary">保存</button></div></div></div>
+    
+    <div id="toast-container"></div>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const playerListEl = document.getElementById('playerList'), addPlayerBtn = document.getElementById('addPlayerBtn'), removePlayerBtn = document.getElementById('removePlayerBtn'), playerCountDisp = document.getElementById('player-count-display'), teamUpBtn = document.getElementById('teamUpBtn'), resetBtn = document.getElementById('resetBtn'), statsBtn = document.getElementById('statsBtn'), allowRepeatSwitch = document.getElementById('allowRepeatSwitch'), allowRepeatLabel = document.getElementById('allowRepeatLabel'), statsModal = document.getElementById('statsModal'), closeStatsModalBtn = document.getElementById('closeStatsModal'), toastContainer = document.getElementById('toast-container'), settingsBtn = document.getElementById('settingsBtn'), settingsModal = document.getElementById('settingsModal'), closeSettingsModalBtn = document.getElementById('closeSettingsModal'), saveSettingsBtn = document.getElementById('saveSettingsBtn'), restoreDefaultsBtn = document.getElementById('restoreDefaultsBtn'), titleEditorList = document.getElementById('title-editor-list'), soundSettingsList = document.getElementById('sound-settings-list');
+        
+        let players = [], teamHistory = [], totalRounds = 0, isConfirmingReset = false, roundIsDirty = false, lastScoringTeam = null, allowRepeats = false, lastTeamComposition = null;
+        const DEFAULT_RANK_TITLES = ['👑 独孤求败', '🥈 一方豪强', '🥉 中流砥柱', '江湖小虾', '初出茅庐', '潜力新星', '待展宏图', '不忘初心'];
+        let rankTitles = [...DEFAULT_RANK_TITLES];
+        let customSounds = { scoreUp: null, teamUp: null, record: null };
+        const SOUND_EVENTS = { scoreUp: "加分反馈", teamUp: "组队反馈", record: "记录反馈" };
+        const STORAGE_KEY = 'superScorekeeper_v2.5', nemesisIconSVG = `<svg class="nemesis-icon-svg" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 9.5l-5 5M9.5 9.5l5 5"/><path d="M2.5 21.5l8-8"/><path d="M16 3l5 5"/><path d="M13.5 6.5l5 5"/><path d="M3 22l4-4"/><path d="M18 2l4 4"/></svg>`;
+
+        function initializeApp() {
+            const savedState = localStorage.getItem(STORAGE_KEY);
+            if (savedState) {
+                const state = JSON.parse(savedState);
+                players = state.players || []; teamHistory = state.teamHistory || []; totalRounds = state.totalRounds || 0; allowRepeats = state.allowRepeats || false;
+                rankTitles = state.rankTitles && state.rankTitles.length === 8 ? state.rankTitles : [...DEFAULT_RANK_TITLES];
+                customSounds = state.customSounds || { scoreUp: null, teamUp: null, record: null };
+            }
+            if (players.length === 0) { for (let i = 0; i < 4; i++) createPlayer(); }
+            updateAllowRepeatSwitchUI(); renderAll();
+        }
+
+        function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify({ players, teamHistory, totalRounds, allowRepeats, rankTitles, customSounds })); }
+        function createPlayer() { if (players.length >= 8) return; players.push({ id: Date.now() + Math.random(), name: `玩家 ${players.length + 1}`, score: 0, wins: 0, losses: 0, team: null, isNemesis: false }); renderAll(); }
+        function removePlayer() { if (players.length <= 2) return; players.pop(); if (players.some(p => p.team)) { smartClearTeams(false); } renderAll(); }
+
+        function renderAll() {
+            playerListEl.innerHTML = ''; const sortedByScore = [...players].sort((a, b) => b.score - a.score); const rankMap = new Map(sortedByScore.map((p, i) => [p.id, i])); const teamA = players.filter(p => p.team === 'A'), teamB = players.filter(p => p.team === 'B'), noTeam = players.filter(p => !p.team).sort((a, b) => rankMap.get(a.id) - rankMap.get(b.id));
+            teamA.forEach(p => playerListEl.appendChild(createPlayerCard(p, rankMap))); if (teamA.length > 0 && teamB.length > 0) { playerListEl.appendChild(createVsSeparator()); } teamB.forEach(p => playerListEl.appendChild(createPlayerCard(p, rankMap))); noTeam.forEach(p => playerListEl.appendChild(createPlayerCard(p, rankMap)));
+            updateControlsState(); saveData();
+        }
+
+        function createPlayerCard(player, rankMap) { const card = document.createElement('div'), rankIndex = rankMap.get(player.id), rankTitle = rankTitles[rankIndex] || rankTitles[rankTitles.length - 1]; card.className = 'player-card'; if (rankIndex === 0) card.classList.add('rank-1'); if (player.team) card.classList.add(`team-${player.team.toLowerCase()}`); card.dataset.playerId = player.id; card.innerHTML = `<div class="nemesis-icon ${player.isNemesis ? 'active' : ''}" data-action="toggle-nemesis" title="设为宿敌">${nemesisIconSVG}</div><span class="player-rank-title">${rankTitle}</span><span class="player-name" contenteditable="true" spellcheck="false">${player.name}</span><div class="player-scoring"><button class="score-btn" data-action="minus">−</button><span class="player-score">${player.score}</span><button class="score-btn" data-action="plus">+</button></div>`; return card; }
+        function createVsSeparator() { const container = document.createElement('div'); container.className = 'vs-separator-container'; const vsText = document.createElement('span'); vsText.className = 'vs-text'; vsText.textContent = 'VS'; const btn = document.createElement('button'); btn.id = 'dynamicRecordBtn'; btn.className = 'btn'; btn.textContent = '记录本局'; btn.disabled = !roundIsDirty; container.appendChild(vsText); container.appendChild(btn); return container; }
+        
+        function setAnimationLock(locked) { [teamUpBtn, resetBtn, allowRepeatSwitch].forEach(btn => btn.disabled = locked); if (!locked) updateControlsState(); }
+        function updateControlsState() { const playerCount = players.length; playerCountDisp.textContent = `${playerCount} 位玩家`; addPlayerBtn.disabled = playerCount >= 8; removePlayerBtn.disabled = playerCount <= 2; teamUpBtn.disabled = playerCount < 2 || playerCount % 2 !== 0; const recordBtn = document.getElementById('dynamicRecordBtn'); if (recordBtn) recordBtn.disabled = !roundIsDirty; resetClearButtonState(); }
+
+        function smartTeamUp() {
+            setAnimationLock(true);
+            if (players.some(p => p.team)) { if (roundIsDirty && lastScoringTeam) recordRound(true); }
+            document.querySelectorAll('.player-name').forEach(el => el.classList.add('shaking'));
+            playSound('teamUp');
+            setTimeout(() => {
+                players.forEach(p => p.team = null); roundIsDirty = false; lastScoringTeam = null;
+                const nemeses = players.filter(p => p.isNemesis), available = players.filter(p => !p.isNemesis); let teamA, teamB, teamA_ids;
+                do {
+                    teamA = []; teamB = []; if (nemeses.length === 2) { teamA.push(nemeses[0]); teamB.push(nemeses[1]); } else if (nemeses.length === 1) { teamA.push(nemeses[0]); } let shuffled = available.sort(() => 0.5 - Math.random()); shuffled.forEach(p => (teamA.length < players.length / 2) ? teamA.push(p) : teamB.push(p)); if (Math.random() > 0.5) [teamA, teamB] = [teamB, teamA]; teamA_ids = teamA.map(p => p.id).sort();
+                } while (!allowRepeats && players.length > 2 && lastTeamComposition && JSON.stringify(teamA_ids) === JSON.stringify(lastTeamComposition));
+                lastTeamComposition = teamA_ids; players.forEach(p => { if (teamA.map(pl => pl.id).includes(p.id)) p.team = 'A'; else p.team = 'B'; });
+                renderAll(); setAnimationLock(false);
+            }, 500);
+        }
+
+        function smartClearTeams(autoRecord = true) { if (autoRecord && roundIsDirty && lastScoringTeam) { recordRound(true); } players.forEach(p => p.team = null); roundIsDirty = false; lastScoringTeam = null; lastTeamComposition = null; renderAll(); }
+
+        function handleScoreChange(playerId, increment) {
+            const player = players.find(p => p.id === playerId); if (!player) return; let affectedPlayers = [];
+            if (player.team) { const scoringTeam = player.team; lastScoringTeam = scoringTeam; players.forEach(p => { if (p.team) { p.score += (p.team === scoringTeam ? increment : -increment); affectedPlayers.push(p.id); } }); }
+            else { player.score += increment; affectedPlayers.push(player.id); }
+            roundIsDirty = true; if (increment > 0) playSound('scoreUp');
+            renderAll(); affectedPlayers.forEach(id => { const card = playerListEl.querySelector(`.player-card[data-player-id="${id}"]`); if (card) { const scoreEl = card.querySelector('.player-score'); scoreEl.classList.add('popping'); scoreEl.addEventListener('animationend', () => scoreEl.classList.remove('popping'), { once: true }); } });
+        }
+        
+        function recordRound(isAuto = false) {
+            if (!roundIsDirty || !lastScoringTeam) return;
+            const winningTeam = lastScoringTeam, losingTeam = winningTeam === 'A' ? 'B' : 'A'; const teamA_ids = players.filter(p => p.team === 'A').map(p => p.id).sort(); const teamB_ids = players.filter(p => p.team === 'B').map(p => p.id).sort(); if (teamA_ids.length > 0 && teamB_ids.length > 0) teamHistory.push([teamA_ids, teamB_ids].sort());
+            players.forEach(p => { if (p.team === winningTeam) p.wins++; else if (p.team === losingTeam) p.losses++; });
+            totalRounds++; roundIsDirty = false; lastScoringTeam = null; playSound('record');
+            updateControlsState(); saveData(); showToast(isAuto ? '已自动记录本局' : '记录完成');
+        }
+
+        function showToast(message) { toastContainer.textContent = message; toastContainer.classList.add('show'); setTimeout(() => toastContainer.classList.remove('show'), 2500); }
+        function resetGame() { if (!isConfirmingReset) { isConfirmingReset = true; resetBtn.textContent = '确认重置?'; resetBtn.classList.add('confirm'); setTimeout(resetClearButtonState, 3000); } else { if (confirm('此操作不可逆，将清空所有得分和历史记录！')) { localStorage.removeItem(STORAGE_KEY); players = []; teamHistory = []; totalRounds = 0; roundIsDirty = false; lastScoringTeam = null; lastTeamComposition = null; rankTitles = [...DEFAULT_RANK_TITLES]; customSounds = { scoreUp: null, teamUp: null, record: null }; initializeApp(); showToast('数据已全部重置'); } hideStats(); resetClearButtonState(); } }
+        function resetClearButtonState() { isConfirmingReset = false; resetBtn.textContent = '清零所有数据'; resetBtn.classList.remove('confirm'); }
+        function toggleAllowRepeats() { allowRepeats = !allowRepeats; updateAllowRepeatSwitchUI(); saveData(); }
+        function updateAllowRepeatSwitchUI() { allowRepeatSwitch.classList.toggle('active', allowRepeats); allowRepeatLabel.textContent = allowRepeats ? '允许重复' : '避免重复'; }
+
+        function playSound(type) { if (customSounds[type]) { new Audio(customSounds[type]).play().catch(e => {}); } }
+
+        function showStats() { renderStats(); statsModal.classList.add('visible'); }
+        function hideStats() { statsModal.classList.remove('visible'); resetClearButtonState(); }
+        function renderStats() {
+            document.getElementById('generalStatsList').innerHTML = `<li><span class="stat-name">总局数</span><span class="stat-value">${totalRounds}</span></li>`;
+            const rankList = document.getElementById('rankList'); rankList.innerHTML = ''; [...players].sort((a, b) => b.score - a.score).forEach((player, index) => { const li = document.createElement('li'); if (index === 0) li.classList.add('rank-1-item'); li.innerHTML = `<span class="rank-name">${index + 1}. ${player.name}</span><span class="rank-score">${player.score}分 / ${player.wins}胜 ${player.losses}负</span>`; rankList.appendChild(li); });
+            const teamList = document.getElementById('teamStatsList'); teamList.innerHTML = ''; const pairCounts = {}; players.forEach((p1, i) => { for (let j = i + 1; j < players.length; j++) { const key = [p1.id, players[j].id].sort().join('-'); pairCounts[key] = 0; } });
+            teamHistory.forEach(teams => teams.forEach(team => { if(team.length > 1) { for(let i = 0; i < team.length; i++) for(let j = i + 1; j < team.length; j++) { const key = [team[i], team[j]].sort().join('-'); if (key in pairCounts) pairCounts[key]++; } } }));
+            const sortedPairs = Object.entries(pairCounts).sort(([,a],[,b]) => b-a); if(sortedPairs.length === 0 || sortedPairs.every(p => p[1] === 0)) { teamList.innerHTML = '<li>暂无组队数据</li>'; return; }
+            sortedPairs.forEach(([key, count]) => { if(count === 0) return; const ids = key.split('-').map(Number), p1 = players.find(p => p.id === ids[0]), p2 = players.find(p => p.id === ids[1]); if (!p1 || !p2) return; const percentage = totalRounds > 0 ? ((count / totalRounds) * 100).toFixed(0) : 0; const li = document.createElement('li'); li.innerHTML = `<span class="stat-name">${p1.name} & ${p2.name}</span><span class="stat-value">${count}次 (${percentage}%)</span>`; teamList.appendChild(li); });
+        }
+        
+        function showSettingsModal() {
+            titleEditorList.innerHTML = ''; rankTitles.forEach((title, index) => { titleEditorList.innerHTML += `<li><span class="setting-label">第 ${index + 1} 名</span><input type="text" value="${title}" data-index="${index}"></li>`; });
+            soundSettingsList.innerHTML = '';
+            for (const type in SOUND_EVENTS) {
+                const status = customSounds[type] ? '已设置' : '未设置';
+                soundSettingsList.innerHTML += `<li class="sound-setting" data-sound-type="${type}"><span class="setting-label">${SOUND_EVENTS[type]}</span><label class="btn btn-small">上传<input type="file" accept=".mp3,.wav,.m4a" style="display:none;"></label><button class="btn btn-small" data-action="play">试听</button><button class="btn btn-small danger" data-action="clear">清除</button><span class="status-text">${status}</span></li>`;
+            }
+            settingsModal.classList.add('visible');
+        }
+        function hideSettingsModal() { settingsModal.classList.remove('visible'); }
+        function saveSettings() {
+            titleEditorList.querySelectorAll('input').forEach(input => { rankTitles[parseInt(input.dataset.index)] = input.value.trim() || DEFAULT_RANK_TITLES[parseInt(input.dataset.index)]; });
+            saveData(); renderAll(); hideSettingsModal(); showToast('设置已保存');
+        }
+        function restoreDefaults() { rankTitles = [...DEFAULT_RANK_TITLES]; customSounds = { scoreUp: null, teamUp: null, record: null }; saveData(); showSettingsModal(); }
+        function handleSoundUpload(e) {
+            const file = e.target.files[0], type = e.target.closest('li').dataset.soundType;
+            if (!file || !type) return;
+            const reader = new FileReader();
+            reader.onload = (event) => { customSounds[type] = event.target.result; saveData(); e.target.closest('li').querySelector('.status-text').textContent = '已设置'; showToast(`${SOUND_EVENTS[type]} 音效已更新`); };
+            reader.onerror = () => showToast('文件读取失败');
+            reader.readAsDataURL(file);
+        }
+
+        addPlayerBtn.addEventListener('click', createPlayer); removePlayerBtn.addEventListener('click', removePlayer); teamUpBtn.addEventListener('click', smartTeamUp);
+        resetBtn.addEventListener('click', resetGame); statsBtn.addEventListener('click', showStats); allowRepeatSwitch.addEventListener('click', toggleAllowRepeats); closeStatsModalBtn.addEventListener('click', hideStats); statsModal.addEventListener('click', (e) => { if (e.target === statsModal) hideStats(); });
+        settingsBtn.addEventListener('click', showSettingsModal); closeSettingsModalBtn.addEventListener('click', hideSettingsModal); settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) hideSettingsModal(); });
+        saveSettingsBtn.addEventListener('click', saveSettings); restoreDefaultsBtn.addEventListener('click', restoreDefaults);
+        soundSettingsList.addEventListener('change', (e) => { if (e.target.type === 'file') handleSoundUpload(e); });
+        soundSettingsList.addEventListener('click', (e) => { const target = e.target.closest('button'); if (!target) return; const type = target.closest('li').dataset.soundType; if (target.dataset.action === 'play') playSound(type); if (target.dataset.action === 'clear') { customSounds[type] = null; saveData(); target.closest('li').querySelector('.status-text').textContent = '未设置'; } });
+
+        playerListEl.addEventListener('click', (e) => { const actionTarget = e.target.closest('[data-action]'); if (e.target.id === 'dynamicRecordBtn') { recordRound(); return; } if (!actionTarget) return; const card = e.target.closest('.player-card'), playerId = parseFloat(card.dataset.playerId), action = actionTarget.dataset.action; if (action === 'toggle-nemesis') { const player = players.find(p => p.id === playerId); if (!player.isNemesis && players.filter(p => p.isNemesis).length >= 2) { showToast('最多只能指定两名宿敌！'); return; } player.isNemesis = !player.isNemesis; renderAll(); } else if (action === 'plus' || action === 'minus') { handleScoreChange(playerId, action === 'plus' ? 1 : -1); } });
+        playerListEl.addEventListener('blur', (e) => { if (e.target.classList.contains('player-name')) { const card = e.target.closest('.player-card'), playerId = parseFloat(card.dataset.playerId), player = players.find(p => p.id === playerId), newName = e.target.textContent.trim(); if (player && newName && player.name !== newName) { player.name = newName; saveData(); } else if (!newName) { e.target.textContent = player.name; } } }, true);
+        
+        initializeApp();
+    });
+    </script>
+</body>
+</html>
